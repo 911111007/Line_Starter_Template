@@ -1,18 +1,29 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
-    <title>LINE Sticker Cropping Tool</title>
+    <title>LINE 貼紙裁剪工具</title>
 </head>
 <body>
-    <h1>LINE Sticker Cropping Tool</h1>
-    <input type="file" id="imageInput" accept="image/*">
-    <canvas id="canvas" style="display:none;"></canvas>
-    <div id="croppedImageContainer"></div>
-    <button id="cropButton">Crop Image</button>
-    <div id="validationFeedback" style="color:red;"></div>
+    <div class="container">
+        <h1>🎨 LINE 貼紙裁剪工具</h1>
+        
+        <div class="input-group">
+            <input type="file" id="imageInput" accept="image/*">
+            <canvas id="canvas" style="display:none;"></canvas>
+            <div id="croppedImageContainer"></div>
+        </div>
+        
+        <div class="button-group">
+            <button id="cropButton">裁剪圖片</button>
+        </div>
+        
+        <div id="validationFeedback"></div>
+    </div>
+    
     <script src="script.js"></script>
 </body>
+</html>
 </html>
