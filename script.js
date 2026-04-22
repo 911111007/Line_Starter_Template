@@ -30,6 +30,12 @@ function handleImageUpload(event) {
             ctx.drawImage(img, 0, 0);
             currentCanvas = canvas;
             
+            // 顯示 canvas
+            canvas.style.display = 'block';
+            
+            // 清空之前的裁切預覽
+            document.getElementById('croppedImageContainer').innerHTML = '';
+            
             clearFeedback();
             showSuccess("圖片已上傳！點擊 '裁剪圖片' 開始編輯。");
         };
@@ -83,6 +89,46 @@ function checkPadding(canvas) {
     }
 }
 
+// 將圖片裁切成正方形
+function cropToSquare(sourceCanvas) {
+    const sourceCtx = sourceCanvas.getContext('2d');
+    const size = Math.min(sourceCanvas.width, sourceCanvas.height);
+    
+    // 創建新的正方形 canvas
+    const croppedCanvas = document.createElement('canvas');
+    croppedCanvas.width = size;
+    croppedCanvas.height = size;
+    const croppedCtx = croppedCanvas.getContext('2d');
+    
+    // 計算裁切區域的起始位置 (居中裁切)
+    const startX = (sourceCanvas.width - size) / 2;
+    const startY = (sourceCanvas.height - size) / 2;
+    
+    // 從原始 canvas 裁切並繪製到新 canvas
+    croppedCtx.drawImage(
+        sourceCanvas, 
+        startX, startY, size, size,  // 來源區域
+        0, 0, size, size            // 目標區域
+    );
+    
+    return croppedCanvas;
+}
+
+// 顯示裁切後的圖片預覽
+function displayCroppedImage(canvas) {
+    const container = document.getElementById('croppedImageContainer');
+    container.innerHTML = ''; // 清空之前的內容
+    
+    const img = document.createElement('img');
+    img.src = canvas.toDataURL('image/png');
+    img.alt = '裁切後的圖片';
+    img.style.maxWidth = '100%';
+    img.style.border = '2px solid #ddd';
+    img.style.borderRadius = '5px';
+    
+    container.appendChild(img);
+}
+
 // 顯示成功訊息
 function showSuccess(message) {
     const feedback = document.getElementById('validationFeedback');
@@ -102,5 +148,4 @@ function clearFeedback() {
     const feedback = document.getElementById('validationFeedback');
     feedback.className = '';
     feedback.textContent = '';
-}
 }
