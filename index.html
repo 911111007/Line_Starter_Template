@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>LINE 貼圖裁切工具</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- CropperJS -->
+  <link rel="stylesheet" href="https://unpkg.com/cropperjs/dist/cropper.css" />
+  <script src="https://unpkg.com/cropperjs"></script>
+
+  <!-- JSZip -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+
+    h1 { margin-bottom: 10px; }
+
+    #uploadBox {
+      border: 2px dashed #aaa;
+      padding: 30px;
+      text-align: center;
+      background: white;
+      margin-bottom: 20px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.3s;
+    }
+
+    #uploadBox:hover {
+      background: #f0f0f0;
+    }
+
+    #uploadBox.dragover {
+      background: #eee;
+      border-color: #4CAF50;
+    }
+
+    #preview {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    .card {
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    img {
+      max-width: 100%;
+      display: block;
+    }
+
+    button {
+      padding: 10px 15px;
+      margin-right: 10px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: opacity 0.3s;
+    }
+
+    button:hover {
+      opacity: 0.8;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #downloadBtn { background: #4CAF50; color: white; }
+    #clearBtn { background: #f44336; color: white; }
+
+    select {
+      padding: 8px;
+      margin-bottom: 15px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>LINE 貼圖裁切工具</h1>
+
+<select id="modeSelect">
+  <option value="sticker">貼圖 (370x320)</option>
+  <option value="tab">聊天室圖 (96x74)</option>
+</select>
+
+<div id="uploadBox">點擊或拖曳圖片到這裡</div>
+<input type="file" id="fileInput" multiple accept="image/png, image/jpeg" hidden />
+
+<div id="preview"></div>
+
+<br />
+<button id="downloadBtn" disabled>下載 ZIP</button>
+<button id="clearBtn" disabled>清空</button>
+
+<script>
+const uploadBox = document.getElementById("uploadBox");
+const fileInput = document.getElementById("fileInput");
+const preview = document.getElementById("preview");
+const modeSelect = document.getElementById("modeSelect");
+const downloadBtn = document.getElementById("downloadBtn");
+const clearBtn = document.getElementById("clearBtn");
+
+let croppers = [];
+let mode = { w: 370, h: 320 };
+
+// 初始化時禁用按鈕
+function updateButtonStates() {
+  downloadBtn.disabled = croppers.length === 0;
+  clearBtn.disabled = croppers.length === 0;
+}
+
+modeSelect.addEventListener("change", () => {
+  if (modeSelect.value === "sticker") {
+    mode = { w: 370, h: 320 };
+  } else {
+    mode = { w: 96, h: 74 };
+  }
+  
+  // 更新已有圖片的長寬比
+  croppers.forEach(cropper => {
+    cropper.setAspectRatio(mode.w / mode.h);
+  });
+});
+
+uploadBox.addEventListener("click", () => {
+  fileInput.click();
+});
+
+uploadBox.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  uploadBox.classList.add("dragover");
+});
+
+uploadBox.addEventListener("dragleave", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  uploadBox.classList.remove("dragover");
+});
+
+uploadBox.addEventListener("drop", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  uploadBox.classList.remove("dragover");
+  handleFiles(e.dataTransfer.files);
+});
+
+fileInput.addEventListener("change", (e) => {
+  handleFiles(e.target.files);
+});
+
+function handleFiles(files) {
+  if (files.length === 0) return;
+
+  preview.innerHTML = "";
+  croppers = [];
+
+  [...files].slice(0, 10).forEach((file, index) => {
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const img = document.createElement("img");
+      img.src = e.target.result;
+
+      card.appendChild(img);
+      preview.appendChild(card);
+
+      // 延遲初始化 Cropper，確保圖片已加載
+      img.onload = () => {
+        const cropper = new Cropper(img, {
+          aspectRatio: mode.w / mode.h,
+          viewMode: 1
+        });
+        croppers.push(cropper);
+        updateButtonStates();
+      };
+    };
+
+    reader.readAsDataURL(file);
+  });
+
+  updateButtonStates();
+}
+
+downloadBtn.addEventListener("click", async () => {
+  if (croppers.length === 0) {
+    alert("請先上傳圖片");
+    return;
+  }
+
+  downloadBtn.disabled = true;
+  downloadBtn.textContent = "處理中...";
+
+  try {
+    const zip = new JSZip();
+
+    for (let i = 0; i < croppers.length; i++) {
+      const canvas = croppers[i].getCroppedCanvas({
+        width: mode.w,
+        height: mode.h,
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: "high"
+      });
+
+      const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
+      const filename = modeSelect.value === "sticker" 
+        ? `sticker_${i + 1}.png` 
+        : `tab_${i + 1}.png`;
+      zip.file(filename, blob);
+    }
+
+    const content = await zip.generateAsync({ type: "blob" });
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(content);
+    a.download = modeSelect.value === "sticker" 
+      ? "line_stickers.zip" 
+      : "line_tabs.zip";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    alert("下載失敗: " + err.message);
+  } finally {
+    downloadBtn.disabled = false;
+    downloadBtn.textContent = "下載 ZIP";
+  }
+});
+
+clearBtn.addEventListener("click", () => {
+  preview.innerHTML = "";
+  croppers = [];
+  fileInput.value = "";
+  updateButtonStates();
+});
+
+updateButtonStates();
+</script>
+
+</body>
+</html>
